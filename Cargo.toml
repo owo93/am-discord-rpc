@@ -2,6 +2,7 @@
 name = "am-discord-rpc"
 version = "0.1.0"
 edition = "2024"
+repository = "https://github.com/owo93/am-discord-rpc"
 
 [dependencies]
 anyhow = "1.0.102"

@@ -1,6 +1,5 @@
 use anyhow::{Context, Result};
 use std::time::Duration;
-use urlencoding;
 use windows::Media::Control::GlobalSystemMediaTransportControlsSession;
 
 #[derive(Debug)]
