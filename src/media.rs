@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
 use std::time::Duration;
+use tracing::instrument;
 use windows::Media::Control::GlobalSystemMediaTransportControlsSession;
 
 #[derive(Debug)]
@@ -23,6 +24,7 @@ pub struct Song {
     pub title: String,
     pub artist: String,
     pub album: String,
+    pub genre: String,
     pub artwork: Option<Artwork>,
 }
 
@@ -54,7 +56,7 @@ impl MediaInfo {
         let elapsed = Duration::from_nanos(timeline.Position()?.Duration as u64 * 100);
         let total = Duration::from_nanos(timeline.EndTime()?.Duration as u64 * 100);
         let start = now - elapsed.as_secs() as i64;
-        let end = now + total.as_secs() as i64;
+        let end = now + (total.checked_sub(elapsed).unwrap_or_default()).as_secs() as i64;
 
         let new_cache = song
             .artwork
@@ -65,11 +67,18 @@ impl MediaInfo {
 }
 
 impl Song {
-    pub fn new(title: String, artist: String, album: String, artwork: Option<Artwork>) -> Self {
+    pub fn new(
+        title: String,
+        artist: String,
+        album: String,
+        genre: String,
+        artwork: Option<Artwork>,
+    ) -> Self {
         Self {
             title,
             artist,
             album,
+            genre,
             artwork,
         }
     }
@@ -82,6 +91,12 @@ impl Song {
         let title = media.Title().unwrap_or_default().to_string();
         let artist = media.Artist().unwrap_or_default().to_string();
         let album = media.AlbumTitle().unwrap_or_default().to_string();
+        let genre = media
+            .Genres()?
+            .First()?
+            .Current()
+            .unwrap_or_default()
+            .to_string();
 
         let (artwork, track_url) = match cache {
             Some(c) if c.matches(&title) => {
@@ -93,7 +108,7 @@ impl Song {
             },
         };
 
-        Ok((Self::new(title, artist, album, artwork), track_url))
+        Ok((Self::new(title, artist, album, genre, artwork), track_url))
     }
 }
 
@@ -103,6 +118,7 @@ impl Default for Song {
             title: "Unknown song".to_string(),
             artist: "Unknown artist".to_string(),
             album: "Unknown album".to_string(),
+            genre: "Unknown genre".to_string(),
             artwork: None,
         }
     }
@@ -135,6 +151,7 @@ impl Cache {
 }
 
 impl ITunesResult {
+    #[instrument(skip_all)]
     pub async fn fetch(title: &str, artist: &str) -> Result<Self> {
         let query = format!("{} {}", title, artist);
         let url = format!(

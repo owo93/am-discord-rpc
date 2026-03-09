@@ -1,88 +1,34 @@
+mod app;
 mod media;
 mod session;
 
 use anyhow::Result;
-use rpcdiscord::{
-    DiscordIpc, DiscordIpcClient,
-    activity::{Activity, ActivityType, Assets, Button, Timestamps},
+use std::sync::{
+    Arc,
+    atomic::{AtomicBool, Ordering},
 };
-use std::time::Duration;
+use tracing::info;
 
-use crate::media::MediaInfo;
-use crate::session::AppleMusicSession;
-
-const POLL_INTERVAL: Duration = Duration::from_millis(250);
-const REPO: &str = env!("CARGO_PKG_REPOSITORY");
+use crate::app::App;
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<()> {
     dotenvy::dotenv().ok();
     let client_id = std::env::var("CLIENT_ID").expect("CLIENT_ID must be set");
 
-    let mut cache = None;
+    let running = Arc::new(AtomicBool::new(true));
+    let ctrl_c = Arc::clone(&running);
+    tokio::spawn(async move {
+        tokio::signal::ctrl_c().await.ok();
+        info!("Shutting down");
+        Arc::clone(&ctrl_c).store(false, Ordering::SeqCst);
+    });
 
-    loop {
-        let mut discord = DiscordIpcClient::new(&client_id)?;
-        loop {
-            match discord.connect() {
-                Ok(_) => {
-                    println!("Connected to Discord!");
-                    break;
-                }
-                Err(_) => {
-                    eprintln!("Waiting for Discord...");
-                    tokio::time::sleep(Duration::from_secs(1)).await;
-                }
-            }
-        }
+    // tracing_subscriber::fmt()
+    //     .with_env_filter(EnvFilter::new(tracing::Level::DEBUG.to_string()))
+    //     .init();
 
-        _ = discord.clear_activity();
+    tracing_subscriber::fmt().init();
 
-        match AppleMusicSession::get().await? {
-            None => {
-                eprintln!("Apple Music is not running.");
-                tokio::time::sleep(Duration::from_secs(5)).await;
-            }
-            Some(session) => {
-                println!("Found Apple music, starting presence loop...");
-                loop {
-                    let (info, new_cache) = MediaInfo::from(&session, cache.as_ref()).await?;
-                    if new_cache != cache {
-                        cache = new_cache;
-                    }
-
-                    let assets = match &info.song.artwork {
-                        Some(artwork) => Assets::new()
-                            .large_image(&artwork.0)
-                            .large_text(&info.song.title),
-                        None => Assets::new(),
-                    };
-
-                    let state_msg = format!("{} {}", &info.song.album, &info.song.artist);
-                    let am_activity = Activity::new()
-                        .activity_type(ActivityType::Listening)
-                        .details(&info.song.title)
-                        .state(&state_msg)
-                        .assets(assets)
-                        .timestamps(Timestamps::new().start(info.start).end(info.end))
-                        .buttons(vec![
-                            Button::new(
-                                "Open in Apple Music",
-                                info.track_url.as_deref().unwrap_or(""),
-                            ),
-                            Button::new(env!("CARGO_PKG_NAME"), REPO),
-                        ]);
-                    match discord.set_activity(am_activity) {
-                        Ok(_) => {}
-                        Err(e) => {
-                            eprintln!("Lost Discord connection: {e}, reconnecting...");
-                            break;
-                        }
-                    }
-
-                    tokio::time::sleep(POLL_INTERVAL).await;
-                }
-            }
-        }
-    }
+    App::new(client_id).run(running).await
 }
