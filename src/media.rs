@@ -24,7 +24,6 @@ pub struct Song {
     pub title: String,
     pub artist: String,
     pub album: String,
-    pub genre: String,
     pub artwork: Option<Artwork>,
 }
 
@@ -67,18 +66,11 @@ impl MediaInfo {
 }
 
 impl Song {
-    pub fn new(
-        title: String,
-        artist: String,
-        album: String,
-        genre: String,
-        artwork: Option<Artwork>,
-    ) -> Self {
+    pub fn new(title: String, artist: String, album: String, artwork: Option<Artwork>) -> Self {
         Self {
             title,
             artist,
             album,
-            genre,
             artwork,
         }
     }
@@ -91,12 +83,6 @@ impl Song {
         let title = media.Title().unwrap_or_default().to_string();
         let artist = media.Artist().unwrap_or_default().to_string();
         let album = media.AlbumTitle().unwrap_or_default().to_string();
-        let genre = media
-            .Genres()?
-            .First()?
-            .Current()
-            .unwrap_or_default()
-            .to_string();
 
         let (artwork, track_url) = match cache {
             Some(c) if c.matches(&title) => {
@@ -108,7 +94,7 @@ impl Song {
             },
         };
 
-        Ok((Self::new(title, artist, album, genre, artwork), track_url))
+        Ok((Self::new(title, artist, album, artwork), track_url))
     }
 }
 
@@ -118,7 +104,6 @@ impl Default for Song {
             title: "Unknown song".to_string(),
             artist: "Unknown artist".to_string(),
             album: "Unknown album".to_string(),
-            genre: "Unknown genre".to_string(),
             artwork: None,
         }
     }
