@@ -38,7 +38,7 @@ impl App {
 
     pub async fn run(&self, running: Arc<AtomicBool>) -> Result<()> {
         let mut cache = None;
-        let mut discord: Option<DiscordIpcClient> = None;
+        let mut discord = None;
 
         while running.load(Ordering::SeqCst) {
             let mut discord_client = match DiscordIpcClient::new(&self.config.client_id) {
@@ -84,7 +84,8 @@ impl App {
                         }
 
                         let assets = match &info.song.artwork {
-                            Some(artwork) => Assets::new().large_image(&artwork.0).small_image("https://cdn.brandfetch.io/id_yBTuraI/w/100/h/100/theme/dark/icon.jpeg?c=1dxbfHSJFAPEGdCLU4o5B"),
+                            Some(artwork) => Assets::new().large_image(&artwork.0)
+                                .small_image("https://cdn.brandfetch.io/id_yBTuraI/w/100/h/100/theme/dark/icon.jpeg?c=1dxbfHSJFAPEGdCLU4o5B"),
                             None => Assets::new(),
                         };
 
