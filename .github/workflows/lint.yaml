@@ -2,10 +2,14 @@ name: Clippy lint
 
 on:
   push:
+  pull_request:
 jobs:
-  clippy-check:
+  clippy:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - name: run clippy
-        run: cargo clippy --no-deps
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          components: clippy
+      - name: cargo clippy
+        run: cargo clippy  -- -D warnings
