@@ -1,0 +1,11 @@
+name: Clippy lint
+
+on:
+  push:
+jobs:
+  clippy-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: run clippy
+        run: cargo clippy --no-deps
