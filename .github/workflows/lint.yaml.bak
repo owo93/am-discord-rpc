@@ -12,4 +12,4 @@ jobs:
         with:
           components: clippy
       - name: cargo clippy
-        run: cargo clippy  -- -D warnings
+        run: cargo clippy  -- -D warnings --no-deps
